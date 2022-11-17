@@ -168,6 +168,86 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
         pub fn return_node(self: *Self, n: *Node) void {
             self.pool.append(n);
         }
+
+        fn split_child(self: *Self, parent: *Node, index: usize) !void {
+            const child = parent.get_child_at(index);
+            const new_child = try self.gimme_node();
+            new_child.leaf = child.leaf;
+            for (child.items[degree/2..]) |item| {
+                new_child.items[new_child.get_item_count()] = item;
+            }
+            if (!child.leaf) {
+                for (child.children[degree/2..]) |c| {
+                    new_child.children[new_child.get_child_count()] = c;
+                }
+            }
+
+            for (child.items[degree/2..]) |i| {
+                i = null;
+            }
+            // child.items[degree/2..] = undefined;
+            if (!child.leaf) {
+                for (child.children[degree/2..]) |c| {
+                    c = null;
+                }
+            }
+            // child.children[degree/2..] = undefined;
+            for (parent.items[index..]) |item| {
+                parent.items[parent.get_item_count()] = item;
+            }
+            parent.items[index] = child.items[degree/2 - 1];
+            child.items[degree/2 - 1] = undefined;
+            for (parent.children[index+1..]) |c| {
+                parent.children[parent.get_child_count()] = c;
+            }
+            parent.children[index+1] = new_child;
+        }
+
+        fn insert_nonfull(self: *Self, n: *Node, item: T) !void {
+            var i = n.get_item_count() - 1;
+            if (n.leaf) {
+                while (i >= 0 and n.items[i] > item) : (i -= 1) {
+                    n.items[i+1] = n.items[i];
+                }
+                n.items[i+1] = item;
+            } else {
+                while (i >= 0 and n.items[i] > item) : (i -= 1) {}
+                i += 1;
+                const child = n.get_child_at(i);
+                if (child) |c| {
+                    if (c.is_full()) {
+                        try self.split_child(n, i);
+                        if (n.items[i] < item) {
+                            i += 1;
+                        }
+                    }
+                    try self.insert_nonfull(n.get_child_at(i).?, item);
+                }
+            }
+        }
+
+        pub fn insert(self: *Self, item: T) !void {
+            if (self.root) |root| {
+                if (root.is_full()) {
+                    const new_root = try self.gimme_node();
+                    new_root.leaf = false;
+                    new_root.children[0] = root;
+                    try self.split_child(new_root, 0);
+                    self.root = new_root;
+                    try self.insert_nonfull(new_root, item);
+                } else {
+                    try self.insert_nonfull(root, item);
+                }
+            } else {
+                const new_root = try self.gimme_node();
+                new_root.leaf = true;
+                new_root.items[0] = item;
+                self.root = new_root;
+            }
+        }
+
+
+
     };  
 }
 
@@ -177,14 +257,14 @@ pub fn main() !void{
     // std.debug.print("{}", .{tree});
     // // var h = tree.btree_height();
     // // std.debug.print("{}", .{h});
-    // try tree.insert(1);
-    // try tree.insert(2);
+    try tree.insert(1);
+    try tree.insert(2);
     std.debug.print("{}", .{tree});
     // try btree.btree_insert(3);
-   var node1 = try node(4, u32).init(allocator);     
-   node1.items[0] = 9;
-//    node1.insertItem(1);
-   std.debug.print("{}", .{node1.get_item_count()});
-   std.debug.print("{any}", .{node1.items});
+//    var node1 = try node(4, u32).init(allocator);     
+//    node1.items[0] = 9;
+// //    node1.insertItem(1);
+//    std.debug.print("{}", .{node1.get_item_count()});
+//    std.debug.print("{any}", .{node1.items});
 
 }
