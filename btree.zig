@@ -121,19 +121,21 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
         const Node = node(degree, T);
         root: ?*Node,
         pool: ArrayList(*Node),
+        allocator: Allocator,
 
         pub fn init(allocator: Allocator) !*Self {
             var self = try allocator.create(Self);
             self.* = .{
                 .root = null,
+                .allocator = allocator,
                 .pool = ArrayList(*Node).init(allocator),
                 // .pool = for (pool) |node| node. = .{};,
             };
             return self;
         }
 
-        pub fn deinit(self: *Self, allocator: Allocator) void {
-            allocator.destroy(self);
+        pub fn deinit(self: *Self) void {
+            self.allocator.destroy(self);
         }   
 
         fn node_free(self: *Self, n: *Node) void {
