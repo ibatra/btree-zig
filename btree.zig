@@ -30,6 +30,16 @@ pub fn node(comptime degree: usize, comptime T: type) type {
             self.items[index] = item;
         }
 
+        pub fn get_item_count(self: *Self) usize {
+            var count: usize = 0;
+            for (self.items) |item| {
+                if (item != 0) {
+                    count += 1;
+                }
+            }
+            return count;
+        }
+
         pub fn get_child_count(self: *Self) usize {
                 var count: usize = 0;
                 for (self.children) |child| {
@@ -40,8 +50,10 @@ pub fn node(comptime degree: usize, comptime T: type) type {
                 return count;
         }   
 
+        
+
         pub fn is_full(self: *Self) bool {
-            return self.get_child_count() == degree-1;
+            return self.get_item_count() == degree-1;
         }
 
         pub fn is_leaf(self: *Self) bool {
@@ -49,23 +61,23 @@ pub fn node(comptime degree: usize, comptime T: type) type {
         }
 
         pub fn is_empty(self: *Self) bool {
-            return self.get_child_count() == 0;
+            return self.get_item_count() == 0;
         }   
 
         pub fn is_half_full(self: *Self) bool {
-            return self.get_child_count() == (degree - 1) / 2;
+            return self.get_item_count() == (degree - 1) / 2;
         }
 
         pub fn is_underflow(self: *Self) bool {
-            return self.get_child_count() < (degree - 1) / 2;
+            return self.get_item_count() < (degree - 1) / 2;
         }   
 
         pub fn is_overflow(self: *Self) bool {
-            return self.get_child_count() > degree - 1;
+            return self.get_item_count() > degree - 1;
         }   
 
         pub fn is_valid(self: *Self) bool {
-            return self.get_child_count() <= degree - 1;
+            return self.get_item_count() <= degree - 1;
         }
 
         pub fn copy_item_into(self: *Self, index: usize, dest: *T) void {
@@ -136,7 +148,7 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             const new_child = try self.gimme_node();
             new_child.leaf = child.is_leaf();
             for (child.items[degree/2..]) |item| {
-                new_child.set_item_at(new_child.get_child_count(), item);
+                new_child.set_item_at(new_child.get_item_count(), item);
             }
             if (!child.is_leaf()) {
                 std.mem.copy(?*Node, new_child.children[0..degree/2], child.children[degree/2..]);
@@ -146,7 +158,7 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             // child.items[degree/2..] = undefined;
             // child.children[degree/2..] = undefined;
             for (parent.items[index..]) |item| {
-                parent.items[parent.get_child_count()] = item;
+                parent.items[parent.get_item_count()] = item;
             }
 
             for (parent.items[index..]) |*item| item.* = undefined;
@@ -159,18 +171,19 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             parent.items[index] = child.items[degree/2 - 1];
             child.items[degree/2 - 1] = undefined;
             parent.children[index] = child;
-            parent.children[parent.get_child_count()] = new_child;
+            parent.children[parent.get_item_count()] = new_child;
         }
 
         fn insert_nonfull(self: *Self, n: *Node, item: T) !void {
             if (n.leaf) {
-                var i: usize = n.get_child_count();
+                var i: usize = n.get_item_count();
                 while (i > 0 and n.items[i-1] > item) : (i -= 1) {
                     n.items[i] = n.items[i-1];
                 }
                 n.items[i] = item;
+
             } else {
-                var i: usize = n.get_child_count();
+                var i: usize = n.get_item_count();
 
                 const child = n.children[i] orelse unreachable;
                 if (child.is_full()) {
@@ -217,9 +230,14 @@ pub fn main() !void{
     try tree.insert(3);
     try tree.insert(2);
     try tree.insert(5);
+    try tree.insert(8);
     try tree.insert(6);
+    try tree.insert(7);
+    try tree.insert(9);
+
 
     std.debug.print("{}", .{tree});
+    // std.debug.print("{}", .{tree.root.?.items.len});
     // try btree.btree_insert(3);
 //    var node1 = try node(4, u32).init(allocator);     
 //    node1.items[0] = 9;
