@@ -150,10 +150,6 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             for (child.items[degree/2..]) |item| {
                 new_child.set_item_at(new_child.get_item_count(), item);
             }
-            
-            // if (!child.is_leaf()) {
-            //     std.mem.copy(?*Node, new_child.children[0..degree/2], child.children[degree/2..]);
-            // }
 
             if (!child.leaf) {
                 for (child.children[degree/2..]) |c, i| {
@@ -161,16 +157,24 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
                 }
             }
             for (child.items[degree/2..]) |*item| item.* = 0;
-            for (child.children[degree/2..]) |*item| item.* = null;
+            for (child.children[degree/2..]) |*c| c.* = null;
             // child.items[degree/2..] = undefined;
             // child.children[degree/2..] = undefined;
+            // std.debug.print("{any}",.{parent.items});
             for (parent.items[index..]) |item| {
+                // std.debug.print("{any}",.{parent.items[index..]});
+                if (parent.get_item_count() == degree - 1) {
+                    break;
+                }
                 parent.items[parent.get_item_count()] = item;
             }
-
-            for (parent.items[index..]) |*item| item.* = 0;
+            
+            for (parent.items[index+1..]) |*item| item.* = 0;
             // parent.items[index..] = undefined;
             for (parent.children[index+1..]) |c| {
+                if (parent.get_child_count() == degree) {
+                    break;
+                }
                 parent.children[parent.get_child_count()] = c;
             }
             for (parent.items[index+1..]) |*item| item.* = 0;
@@ -255,25 +259,45 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
 
 pub fn main() !void{
     var allocator = std.heap.page_allocator;
-    var tree = try btree(5, u32).init(allocator);
+    var tree = try btree(5, u8).init(allocator);
     // std.debug.print("{}", .{tree});
-    try tree.insert(8);
-    try tree.insert(9);
-    try tree.insert(10);
-    try tree.insert(11);
-    // tree.display_tree();
-    try tree.insert(15);
+    var prng = std.rand.DefaultPrng.init(blk: {
+        var seed: u64 = undefined;
+        try std.os.getrandom(std.mem.asBytes(&seed));
+        break :blk seed;
+    });
+    const rand = prng.random();
+    var i: usize = 0;
+    var r: u8 = 0;
+    while (i < 100) : (i += 1) {
+        r = rand.int(u8);
+        std.debug.print("Inserting {}\n", .{r});
+        // tree.display_tree();
+        try tree.insert(r);
+        
+    }
+    tree.display_tree();
+    // try tree.insert(8);
+    // try tree.insert(9);
+    // try tree.insert(10);
+    // try tree.insert(11);
+    // // tree.display_tree();
+    // try tree.insert(15);
     
-    try tree.insert(16);
-    // tree.display_tree();
-    try tree.insert(17);
-    // tree.display_tree();
-    try tree.insert(18);
-    try tree.insert(20);
-    try tree.insert(23);
-    try tree.insert(24);
-    try tree.insert(50);
-    try tree.insert(2);
+    // try tree.insert(16);
+    // try tree.insert(17);
+    // try tree.insert(18);
+    // try tree.insert(20);
+    // try tree.insert(23);
+    // try tree.insert(24);
+    // try tree.insert(50);
+    // try tree.insert(2);
+    // try tree.insert(51);
+    // try tree.insert(52);
+    // try tree.insert(53);
+    // try tree.insert(54);
+    // try tree.insert(55);
+
     // std.debug.print("{any}", .{tree.root.?.children});
     tree.display_tree();
 }
