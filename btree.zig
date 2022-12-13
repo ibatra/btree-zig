@@ -150,69 +150,101 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             for (child.items[degree/2..]) |item| {
                 new_child.set_item_at(new_child.get_item_count(), item);
             }
-            if (!child.is_leaf()) {
-                std.mem.copy(?*Node, new_child.children[0..degree/2], child.children[degree/2..]);
+            
+            // if (!child.is_leaf()) {
+            //     std.mem.copy(?*Node, new_child.children[0..degree/2], child.children[degree/2..]);
+            // }
+
+            if (!child.leaf) {
+                for (child.children[degree/2..]) |c, i| {
+                    new_child.children[i] = c;
+                }
             }
-            for (child.items[degree/2..]) |*item| item.* = undefined;
-            for (child.children[degree/2..]) |*item| item.* = undefined;
+            for (child.items[degree/2..]) |*item| item.* = 0;
+            for (child.children[degree/2..]) |*item| item.* = null;
             // child.items[degree/2..] = undefined;
             // child.children[degree/2..] = undefined;
             for (parent.items[index..]) |item| {
                 parent.items[parent.get_item_count()] = item;
             }
 
-            for (parent.items[index..]) |*item| item.* = undefined;
+            for (parent.items[index..]) |*item| item.* = 0;
             // parent.items[index..] = undefined;
             for (parent.children[index+1..]) |c| {
                 parent.children[parent.get_child_count()] = c;
             }
-            for (parent.items[index+1..]) |*item| item.* = undefined;
+            for (parent.items[index+1..]) |*item| item.* = 0;
             // parent.children[index+1..] = undefined;
             parent.items[index] = child.items[degree/2 - 1];
-            child.items[degree/2 - 1] = undefined;
+            child.items[degree/2 - 1] = 0;
             parent.children[index] = child;
             parent.children[parent.get_item_count()] = new_child;
         }
 
-        fn insert_nonfull(self: *Self, n: *Node, item: T) !void {
+
+        fn insert_non_full(self: *Self, n: *Node, item: T) !void {
+            var i: usize = n.get_item_count();
             if (n.leaf) {
-                var i: usize = n.get_item_count();
                 while (i > 0 and n.items[i-1] > item) : (i -= 1) {
                     n.items[i] = n.items[i-1];
                 }
                 n.items[i] = item;
-
             } else {
-                var i: usize = n.get_item_count();
-
-                const child = n.children[i] orelse unreachable;
-                if (child.is_full()) {
-                    try self.split_child(n, i);
-                    if (n.items[i] < item) {
-                        i += 1;
+                while (i > 0 and n.items[i-1] > item) : (i -= 1) {}
+                const child: ?*Node = n.children[i];
+                if (child) |c| {
+                    if (c.is_full()) {
+                        // std.debug.print("{}yoo \n", .{i});
+                        try self.split_child(n, i);
+                        if (n.items[i] < item) {
+                            i += 1;
+                        }
                     }
                 }
-                try self.insert_nonfull(child, item);
+                
+                try self.insert_non_full(n.children[i].?, item);
             }
-        }
+        }        
 
         pub fn insert(self: *Self, item: T) !void {
+            // display_tree(self);
             if (self.root) |root| {
                 if (root.is_full()) {
                     const new_root = try self.gimme_node();
+                    self.root = new_root;
                     new_root.leaf = false;
                     new_root.children[0] = root;
                     try self.split_child(new_root, 0);
-                    self.root = new_root;
-                    try self.insert_nonfull(new_root, item);
+                    try self.insert_non_full(new_root, item);
                 } else {
-                    try self.insert_nonfull(root, item);
+                    try self.insert_non_full(root, item);
                 }
             } else {
                 const new_root = try self.gimme_node();
+                self.root = new_root;
                 new_root.leaf = true;
                 new_root.items[0] = item;
-                self.root = new_root;
+            }
+        }
+
+        pub fn display_tree(self: *Self) void {
+            if (self.root) |root| {
+                self.display_node(root, 0);
+            }
+        }
+
+        fn display_node(self: *Self, n: *Node, level: usize) void {
+            std.debug.print("Level {}: ", .{level});
+            for (n.items) |item| {
+                std.debug.print("{} ", .{item});
+            }
+            std.debug.print("\n", .{});
+            if (!n.leaf) {
+                for (n.children) |child| {
+                    if (child) |c| {
+                        self.display_node(c, level+1);
+                    }
+                }
             }
         }
 
@@ -225,24 +257,23 @@ pub fn main() !void{
     var allocator = std.heap.page_allocator;
     var tree = try btree(5, u32).init(allocator);
     // std.debug.print("{}", .{tree});
-    // // var h = tree.btree_height();
-    // // std.debug.print("{}", .{h});
-    try tree.insert(3);
-    try tree.insert(2);
-    try tree.insert(5);
     try tree.insert(8);
-    try tree.insert(6);
-    try tree.insert(7);
     try tree.insert(9);
-
-
-    std.debug.print("{}", .{tree});
-    // std.debug.print("{}", .{tree.root.?.items.len});
-    // try btree.btree_insert(3);
-//    var node1 = try node(4, u32).init(allocator);     
-//    node1.items[0] = 9;
-// //    node1.insertItem(1);
-//    std.debug.print("{}", .{node1.get_child_count()});
-//    std.debug.print("{any}", .{node1.items});
-
+    try tree.insert(10);
+    try tree.insert(11);
+    // tree.display_tree();
+    try tree.insert(15);
+    
+    try tree.insert(16);
+    // tree.display_tree();
+    try tree.insert(17);
+    // tree.display_tree();
+    try tree.insert(18);
+    try tree.insert(20);
+    try tree.insert(23);
+    try tree.insert(24);
+    try tree.insert(50);
+    try tree.insert(2);
+    // std.debug.print("{any}", .{tree.root.?.children});
+    tree.display_tree();
 }
