@@ -252,10 +252,42 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             }
         }
 
+        pub fn min_max_iterate(self: *Self, min: T, max: T, callback: *const fn (T) void) void {
+            if (self.root) |root| {
+                self.min_max_iterate_node(root, min, max, callback);
+            }
+        }   
+
+        fn min_max_iterate_node(self: *Self, n: *Node, min: T, max: T, callback: *const fn (T) void) void {
+            var i: usize = 0;
+            while (i < n.get_item_count() and n.items[i] < min) : (i += 1) {}
+            if (n.leaf) {
+                while (i < n.get_item_count() and n.items[i] <= max) : (i += 1) {
+                    callback(n.items[i]);
+                }
+            } else {
+                while (i < n.get_item_count() and n.items[i] <= max) : (i += 1) {
+                    if (n.items[i] >= min) {
+                        callback(n.items[i]);
+                    }
+                    if (n.children[i]) |c| {
+                        self.min_max_iterate_node(c, min, max, callback);
+                    }
+                }
+                if (n.children[i]) |c| {
+                    self.min_max_iterate_node(c, min, max, callback);
+                }
+            }
+        }   
+
+
+
 
 
     };  
 }
+
+fn print(x: u8) void {std.debug.print("{any}\n", .{x});}
 
 pub fn main() !void{
     var allocator = std.heap.page_allocator;
@@ -277,27 +309,12 @@ pub fn main() !void{
         
     }
     tree.display_tree();
-    // try tree.insert(8);
-    // try tree.insert(9);
-    // try tree.insert(10);
-    // try tree.insert(11);
-    // // tree.display_tree();
-    // try tree.insert(15);
+
     
-    // try tree.insert(16);
-    // try tree.insert(17);
-    // try tree.insert(18);
-    // try tree.insert(20);
-    // try tree.insert(23);
-    // try tree.insert(24);
-    // try tree.insert(50);
-    // try tree.insert(2);
-    // try tree.insert(51);
-    // try tree.insert(52);
-    // try tree.insert(53);
-    // try tree.insert(54);
-    // try tree.insert(55);
+    
+    tree.min_max_iterate(1, 50, print);
+   
 
     // std.debug.print("{any}", .{tree.root.?.children});
-    tree.display_tree();
+    // tree.display_tree();
 }
