@@ -92,6 +92,8 @@ pub fn node(comptime degree: usize, comptime T: type) type {
     };
 }
 
+
+
 pub fn btree(comptime degree: usize, comptime T: type) type {
     return struct {
         const Self = @This();
@@ -99,6 +101,7 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
         root: ?*Node,
         pool: ArrayList(*Node),
         allocator: Allocator,
+
 
         pub fn init(allocator: Allocator) !*Self {
             var self = try allocator.create(Self);
@@ -280,11 +283,69 @@ pub fn btree(comptime degree: usize, comptime T: type) type {
             }
         }   
 
+        // pub fn iterator(self: *Self) @TypeOf(Iterator) {
+        //     return Iterator(T).init(self, null, null);
+        // }
 
+        // pub fn min_max_iterator(self: *Self, min: T, max: T) Iterator {
+        //     return Iterator{
+        //         .tree = self,
+        //         .node = self.root,
+        //         .index = 0,
+        //         .min = min,
+        //         .max = max,
+        //     };
+        // }
 
 
 
     };  
+}
+
+pub fn Iterator(comptime degree: usize, comptime T: type) type {
+    return struct {
+        const Self = @This();
+        tree: *btree(degree, T),
+        node: ?*btree(degree, T).Node,
+        index: usize,
+        min: ?T = null,
+        max: ?T = null,
+
+        pub fn init(tree: *btree(degree, T), min: ?T, max: ?T) Self {
+            return Self{
+                .tree = tree,
+                .node = tree.root,
+                .index = 0,
+                .min = min,
+                .max = max,
+            };
+        }
+
+        pub fn next(self: *Self) ?T {
+            if (self.node) |n| {
+                if (self.min) |min| {
+                    while (self.index < n.get_item_count() and n.items[self.index] < min) : (self.index += 1) {}
+                }
+                if (self.max) |max| {
+                    while (self.index < n.get_item_count() and n.items[self.index] > max) : (self.index += 1) {}
+                }
+                if (self.index < n.get_item_count()) {
+                    const item = n.items[self.index];
+                    self.index += 1;
+                    return item;
+                } 
+                else {
+                        if (n.children[0]) |c| {
+                            self.node = c;
+                            self.index = 0;
+                            return self.next();
+                        }
+
+                }
+            }
+            return null;
+        }
+    };
 }
 
 fn print(x: u8) void {std.debug.print("{any}\n", .{x});}
@@ -310,9 +371,12 @@ pub fn main() !void{
     }
     tree.display_tree();
 
+    var iter = Iterator(5, u8).init(tree, 0, 255);
+    while (iter.next()) |x| {
+        print(x);
+    }
     
-    
-    tree.min_max_iterate(1, 50, print);
+    // tree.iterator().next();
    
 
     // std.debug.print("{any}", .{tree.root.?.children});
